@@ -133,7 +133,7 @@ info "Installing VSCode..."
 
 run curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo rpm --import -
 
-run sudo bash -c 'cat > /etc/yum.repos.d/vscode.repo' <<EOF
+sudo tee /etc/yum.repos.d/vscode.repo > /dev/null << 'EOF'
 [code]
 name=Visual Studio Code
 baseurl=https://packages.microsoft.com/yumrepos/vscode
