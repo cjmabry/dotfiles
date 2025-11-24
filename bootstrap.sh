@@ -68,7 +68,8 @@ fi
 # ----------------------------
 info "Updating Fedora..."
 run sudo dnf upgrade -y && sudo dnf update -y
-run sudo dnf install -y nextcloud-client vlc zsh gnome-tweaks awscli2 libffi-devel
+run sudo dnf install -y nextcloud-client vlc zsh gnome-tweaks awscli2 libffi-devel postgresql-server postgresql-contrib
+
 
 info "Setting up PostgreSQL..."
 run sudo systemctl enable postgresql
