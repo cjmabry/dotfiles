@@ -68,18 +68,7 @@ fi
 # ----------------------------
 info "Updating Fedora..."
 run sudo dnf upgrade -y && sudo dnf update -y
-
-PACKAGES_FILE="$CONFIG_DIR/packages.txt"
-if [ -f "$PACKAGES_FILE" ]; then
-    info "Installing DNF packages..."
-    while IFS= read -r pkg; do
-        [[ "$pkg" =~ ^#.*$ || -z "$pkg" ]] && continue
-        run sudo dnf install -y "$pkg"
-    done < "$PACKAGES_FILE"
-fi
-
-info "Installing Development Tools..."
-run sudo dnf groupinstall -y "Development Tools"
+run sudo dnf install -y nextcloud-client vlc zsh gnome-tweaks awscli2 libffi-devel
 
 info "Setting up PostgreSQL..."
 run sudo systemctl enable postgresql
