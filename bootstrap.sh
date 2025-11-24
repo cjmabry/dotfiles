@@ -208,4 +208,40 @@ if [[ "$INSTALL_AMD" == 1 ]]; then
     info "AMD installer placeholder..."
 fi
 
+# ----------------------------
+# Restore GNOME settings (dconf)
+# ----------------------------
+if [[ "$RESTORE_GNOME" == 1 ]]; then
+    GNOME_DIR="$DOTFILES_DIR/gnome"
+
+    if [[ -d "$GNOME_DIR" ]]; then
+        info "Restoring GNOME settings from $GNOME_DIR ..."
+
+        for f in wm-keybindings media-keys terminal-profiles interface gnome-shell gnome-extensions wm-preferences peripherals nautilus; do
+            INI_FILE="$GNOME_DIR/$f.ini"
+            if [[ -f "$INI_FILE" ]]; then
+                case $f in
+                    wm-keybindings)      run dconf load /org/gnome/desktop/wm/keybindings/ < "$INI_FILE" ;;
+                    media-keys)          run dconf load /org/gnome/settings-daemon/plugins/media-keys/ < "$INI_FILE" ;;
+                    terminal-profiles)   run dconf load /org/gnome/terminal/legacy/profiles:/ < "$INI_FILE" ;;
+                    interface)           run dconf load /org/gnome/desktop/interface/ < "$INI_FILE" ;;
+                    gnome-shell)         run dconf load /org/gnome/shell/ < "$INI_FILE" ;;
+                    gnome-extensions)    run dconf load /org/gnome/shell/extensions/ < "$INI_FILE" ;;
+                    wm-preferences)      run dconf load /org/gnome/desktop/wm/preferences/ < "$INI_FILE" ;;
+                    peripherals)         run dconf load /org/gnome/desktop/peripherals/ < "$INI_FILE" ;;
+                    nautilus)            run dconf load /org/gnome/nautilus/ < "$INI_FILE" ;;
+                esac
+                info "Restored $f.ini"
+            else
+                warn "GNOME config file $INI_FILE not found, skipping."
+            fi
+        done
+
+        success "All GNOME settings restored."
+    else
+        warn "GNOME directory $GNOME_DIR not found — skipping GNOME restore."
+    fi
+fi
+
+
 success "Bootstrap completed!"
