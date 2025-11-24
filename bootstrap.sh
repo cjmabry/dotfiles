@@ -113,15 +113,16 @@ info "Installing 1Password..."
 
 run curl -fsSL https://downloads.1password.com/linux/keys/1password.asc | sudo rpm --import -
 
-run sudo bash -c 'cat > /etc/yum.repos.d/1password.repo' <<EOF
+sudo tee /etc/yum.repos.d/1password.repo >/dev/null << 'EOF'
 [1password]
 name=1Password Stable Channel
-baseurl=https://downloads.1password.com/linux/rpm/stable/\$basearch
+baseurl=https://downloads.1password.com/linux/rpm/stable/$basearch
 enabled=1
 gpgcheck=1
-repo_gpgcheck=1
 gpgkey=https://downloads.1password.com/linux/keys/1password.asc
 EOF
+
+
 
 run sudo dnf install -y 1password
 
