@@ -1,0 +1,7 @@
+# Fedora packages to install via dnf
+nextcloud-client
+vlc
+zsh
+gnome-tweaks
+awscli2
+libffi-devel
