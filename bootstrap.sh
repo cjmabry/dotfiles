@@ -244,4 +244,11 @@ if [[ "$RESTORE_GNOME" == 1 ]]; then
 fi
 
 
+# ----------------------------
+# Input Remapper
+# ----------------------------
+sudo dnf install input-remapper
+sudo systemctl enable --now input-remapper
+
+
 success "Bootstrap completed!"
