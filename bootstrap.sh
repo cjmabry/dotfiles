@@ -28,20 +28,22 @@ while [[ "$#" -gt 0 ]]; do
         --skip-gnome) RESTORE_GNOME=0 ;;
         --dry-run) DRY_RUN=1 ;;
         --help)
-            echo "Usage: $0 [OPTIONS]"
-            echo "Options:"
-            echo "  --skip-flatpak   Skip Flatpak apps"
-            echo "  --skip-nvidia    Skip NVIDIA drivers"
-            echo "  --skip-amd       Skip AMD drivers"
-            echo "  --skip-node      Skip Node/NVM"
-            echo "  --skip-pyenv     Skip PyEnv"
-            echo "  --skip-docker    Skip Docker"
-            echo "  --skip-gnome     Skip GNOME restore"
-            echo "  --dry-run        Show actions without running"
+            cat <<EOF
+Usage: $0 [OPTIONS]
+Options:
+  --skip-flatpak   Skip Flatpak apps
+  --skip-nvidia    Skip NVIDIA drivers
+  --skip-amd       Skip AMD drivers
+  --skip-node      Skip Node/NVM
+  --skip-pyenv     Skip PyEnv
+  --skip-docker    Skip Docker
+  --skip-gnome     Skip GNOME restore
+  --dry-run        Show actions without running
+EOF
             exit 0
             ;;
         *)
-            echo "Unknown option: $1"; exit 1 ;;
+            echo "Unknown option: $1" && exit 1 ;;
     esac
     shift
 done
@@ -49,13 +51,14 @@ done
 info()    { echo -e "\e[34m[INFO]\e[0m $1"; }
 success() { echo -e "\e[32m[SUCCESS]\e[0m $1"; }
 warn()    { echo -e "\e[33m[WARN]\e[0m $1"; }
-run() { if [[ $DRY_RUN -eq 1 ]]; then echo "[DRY-RUN] $*"; else eval "$@"; fi }
+run() { if [[ $DRY_RUN -eq 1 ]]; then echo "[DRY-RUN] $*"; else eval "$@"; fi; }
 
 # ----------------------------
 # Update dotfiles repo
 # ----------------------------
 DOTFILES_REPO="git@github.com:cjmabry/dotfiles.git"
-if [ -d "$DOTFILES_DIR/.git" ]; then
+
+if [[ -d "$DOTFILES_DIR/.git" ]]; then
     info "Updating existing dotfiles repo..."
     run git -C "$DOTFILES_DIR" pull origin main
 else
@@ -67,9 +70,19 @@ fi
 # Base system
 # ----------------------------
 info "Updating Fedora..."
-run sudo dnf upgrade -y && sudo dnf update -y
-run sudo dnf install -y nextcloud-client vlc zsh gnome-tweaks awscli2 libffi-devel postgresql-server postgresql-contrib
+run sudo dnf upgrade -y
+run sudo dnf update -y
 
+info "Installing base packages..."
+run sudo dnf install -y \
+    nextcloud-client \
+    vlc \
+    zsh \
+    gnome-tweaks \
+    awscli2 \
+    libffi-devel \
+    postgresql-server \
+    postgresql-contrib
 
 info "Setting up PostgreSQL..."
 run sudo systemctl enable postgresql
@@ -82,29 +95,52 @@ run sudo systemctl start postgresql
 if [[ "$INSTALL_FLATPAK" == 1 ]]; then
     info "Installing Flatpak apps..."
     FLATHUB_LIST="$CONFIG_DIR/flatpak.txt"
-    if [ -f "$FLATHUB_LIST" ]; then
+
+    if [[ -f "$FLATHUB_LIST" ]]; then
         while IFS= read -r app; do
             [[ "$app" =~ ^#.*$ || -z "$app" ]] && continue
             run flatpak install -y flathub "$app" || warn "Failed: $app"
         done < "$FLATHUB_LIST"
     else
-        warn "$FLATHUB_LIST not found, skipping Flatpak apps."
+        warn "No flatpak.txt found — skipping Flatpak installs."
     fi
 fi
 
 # ----------------------------
 # 1Password
 # ----------------------------
-sudo rpm --import https://downloads.1password.com/linux/keys/1password.asc
-sudo sh -c 'echo -e "[1password]\nname=1Password Stable Channel\nbaseurl=https://downloads.1password.com/linux/rpm/stable/\$basearch\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=\"https://downloads.1password.com/linux/keys/1password.asc\"" > /etc/yum.repos.d/1password.repo'
-sudo dnf install 1password
+info "Installing 1Password..."
+
+run curl -fsSL https://downloads.1password.com/linux/keys/1password.asc | sudo rpm --import -
+
+run sudo bash -c 'cat > /etc/yum.repos.d/1password.repo' <<EOF
+[1password]
+name=1Password Stable Channel
+baseurl=https://downloads.1password.com/linux/rpm/stable/\$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://downloads.1password.com/linux/keys/1password.asc
+EOF
+
+run sudo dnf install -y 1password
 
 # ----------------------------
 # VSCode
 # ----------------------------
 info "Installing VSCode..."
-run sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
-run sudo sh -c 'echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/vscode.repo'
+
+run curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo rpm --import -
+
+run sudo bash -c 'cat > /etc/yum.repos.d/vscode.repo' <<EOF
+[code]
+name=Visual Studio Code
+baseurl=https://packages.microsoft.com/yumrepos/vscode
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+EOF
+
 run sudo dnf install -y code
 
 # ----------------------------
@@ -112,13 +148,22 @@ run sudo dnf install -y code
 # ----------------------------
 if [[ "$INSTALL_DOCKER" == 1 ]]; then
     info "Installing Docker..."
+
     run sudo dnf install -y dnf-plugins-core
     run sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-    run sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    run sudo dnf install -y \
+        docker-ce \
+        docker-ce-cli \
+        containerd.io \
+        docker-buildx-plugin \
+        docker-compose-plugin
+
     run sudo systemctl start docker
-    if ! groups $USER | grep -q '\bdocker\b'; then
-        run sudo usermod -aG docker $USER
+
+    if ! groups "$USER" | grep -q docker; then
+        run sudo usermod -aG docker "$USER"
     fi
+
     run newgrp docker
     run docker run hello-world || warn "Docker test failed"
 fi
@@ -129,9 +174,11 @@ fi
 if [[ "$INSTALL_NODE" == 1 ]]; then
     info "Installing NVM and Node..."
     run curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
     export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+    [[ -s "$NVM_DIR/nvm.sh" ]] && source "$NVM_DIR/nvm.sh"
+    [[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
+
     run nvm install node
 fi
 
@@ -141,60 +188,23 @@ fi
 if [[ "$INSTALL_PYENV" == 1 ]]; then
     info "Installing PyEnv..."
     run curl https://pyenv.run | bash
-    echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
-    echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-    echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+
+    {
+        echo 'export PYENV_ROOT="$HOME/.pyenv"'
+        echo 'export PATH="$PYENV_ROOT/bin:$PATH"'
+        echo 'eval "$(pyenv init -)"'
+    } >> ~/.bashrc
 fi
 
 # ----------------------------
-# GPU drivers
+# GPU drivers (stub)
 # ----------------------------
 if [[ "$INSTALL_NVIDIA" == 1 ]]; then
-    info "Installing NVIDIA drivers..."
-    run sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda
-elif [[ "$INSTALL_AMD" == 1 ]]; then
-    info "Installing AMD drivers..."
-    run sudo dnf install -y xorg-x11-drv-amdgpu
-else
-    info "Skipping GPU drivers."
+    info "NVIDIA installer placeholder..."
 fi
 
-# ----------------------------
-# GNOME settings
-# ----------------------------
-if [[ "$RESTORE_GNOME" == 1 ]]; then
-    GNOME_DIR="$CONFIG_DIR/gnome"
-    TARGET_DIR="$HOME/.config/gnome"
-    mkdir -p "$TARGET_DIR"
-
-    if [ -d "$GNOME_DIR" ]; then
-        info "Restoring GNOME settings to $TARGET_DIR..."
-        for f in wm-keybindings media-keys terminal-profiles interface gnome-shell gnome-extensions wm-preferences peripherals nautilus; do
-            if [ -f "$GNOME_DIR/$f.ini" ]; then
-                case $f in
-                    wm-keybindings) dconf load /org/gnome/desktop/wm/keybindings/ < "$GNOME_DIR/$f.ini" ;;
-                    media-keys)     dconf load /org/gnome/settings-daemon/plugins/media-keys/ < "$GNOME_DIR/$f.ini" ;;
-                    terminal-profiles) dconf load /org/gnome/terminal/legacy/profiles:/ < "$GNOME_DIR/$f.ini" ;;
-                    interface)      dconf load /org/gnome/desktop/interface/ < "$GNOME_DIR/$f.ini" ;;
-                    gnome-shell)    dconf load /org/gnome/shell/ < "$GNOME_DIR/$f.ini" ;;
-                    gnome-extensions) dconf load /org/gnome/shell/extensions/ < "$GNOME_DIR/$f.ini" ;;
-                    wm-preferences) dconf load /org/gnome/desktop/wm/preferences/ < "$GNOME_DIR/$f.ini" ;;
-                    peripherals)    dconf load /org/gnome/desktop/peripherals/ < "$GNOME_DIR/$f.ini" ;;
-                    nautilus)       dconf load /org/gnome/nautilus/ < "$GNOME_DIR/$f.ini" ;;
-                esac
-                info "Restored $f.ini"
-            fi
-        done
-    else
-        warn "$GNOME_DIR not found — skipping GNOME restore."
-    fi
+if [[ "$INSTALL_AMD" == 1 ]]; then
+    info "AMD installer placeholder..."
 fi
 
-
-# ----------------------------
-# Input Remapper
-# ----------------------------
-sudo dnf install input-remapper
-sudo systemctl enable --now input-remapper
-
-success "Bootstrap complete!"
+success "Bootstrap completed!"
