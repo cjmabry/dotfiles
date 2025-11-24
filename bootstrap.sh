@@ -174,13 +174,11 @@ fi
 # ----------------------------
 if [[ "$RESTORE_GNOME" == 1 ]]; then
     GNOME_DIR="$CONFIG_DIR/gnome"
-    BACKUP_DIR="$HOME/.config/gnome-backup-$(date +%Y%m%d%H%M%S)"
-    if [ -d "$GNOME_DIR" ]; then
-        info "Backing up existing GNOME settings..."
-        mkdir -p "$BACKUP_DIR"
-        cp -r "$HOME/.config/gnome/"* "$BACKUP_DIR/" || true
+    TARGET_DIR="$HOME/.config/gnome"
+    mkdir -p "$TARGET_DIR"
 
-        info "Restoring GNOME settings..."
+    if [ -d "$GNOME_DIR" ]; then
+        info "Restoring GNOME settings to $TARGET_DIR..."
         for f in wm-keybindings media-keys terminal-profiles interface gnome-shell gnome-extensions wm-preferences peripherals nautilus; do
             if [ -f "$GNOME_DIR/$f.ini" ]; then
                 case $f in
@@ -201,6 +199,7 @@ if [[ "$RESTORE_GNOME" == 1 ]]; then
         warn "$GNOME_DIR not found — skipping GNOME restore."
     fi
 fi
+
 
 # ----------------------------
 # Input Remapper
